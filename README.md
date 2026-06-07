@@ -1,6 +1,6 @@
 # fine-tunningNanoVLM
 
-Код для подготовки датасетов для fine-tuning NanoVLM в среде `MiniGrid-Empty-Random-6x6-v0`.
+Код для подготовки датасетов и запуска экспериментов по fine-tuning NanoVLM в среде `MiniGrid-Empty-Random-6x6-v0`.
 
 Агент получает RGB-наблюдение среды и должен выбрать следующее действие:
 
@@ -13,17 +13,26 @@
 ```text
 fine-tunningNanoVLM/
 ├── README.md
-└── dataset_creation/
-    ├── create_dataset_with_actions.py
-    ├── convert_dataset_with_actions.py
-    ├── create_dataset_with_text.py
-    └── convert_dataset_with_text.py
+├── dataset_creation/
+│   ├── create_dataset_with_actions.py
+│   ├── convert_dataset_with_actions.py
+│   ├── create_dataset_with_text.py
+│   └── convert_dataset_with_text.py
+└── notebooks_with_processing/
+    ├── GRPO.ipynb
+    └── nanoVLM.ipynb
 ```
 
 ## Установка зависимостей
 
 ```bash
 pip install gymnasium minigrid datasets pillow matplotlib transformers accelerate safetensors
+```
+
+Для запуска ноутбуков с обучением также нужен код NanoVLM:
+
+```bash
+git clone https://github.com/huggingface/nanoVLM.git
 ```
 
 ## Файлы
@@ -128,16 +137,79 @@ my_expert_dataset_text_action
 python dataset_creation/convert_dataset_with_text.py
 ```
 
-## Полный пайплайн запуска
+---
 
-Для создания action-only датасета:
+### `notebooks_with_processing/nanoVLM.ipynb`
+
+Ноутбук для запуска **SFT-бэйзлайна** NanoVLM.
+
+В нём выполняются основные шаги supervised fine-tuning:
+
+* загрузка NanoVLM;
+* загрузка подготовленного action-only датасета;
+* настройка processor/tokenizer;
+* обучение модели предсказывать следующее действие по изображению;
+* сохранение чекпоинтов;
+* оценка модели в `MiniGrid-Empty-Random-6x6-v0`;
+* построение графиков success rate по чекпоинтам.
+
+Перед запуском нужно создать action-only датасет:
 
 ```bash
 python dataset_creation/create_dataset_with_actions.py
 python dataset_creation/convert_dataset_with_actions.py
 ```
 
-Для создания text + action датасета:
+---
+
+### `notebooks_with_processing/GRPO.ipynb`
+
+Ноутбук для запуска **GRPO-обучения**.
+
+В нём реализован RL-цикл, где модель взаимодействует со средой `MiniGrid-Empty-Random-6x6-v0` и дообучается по reward из среды.
+
+Основные шаги:
+
+* загрузка SFT-чекпоинта;
+* генерация действия через `model.generate()`;
+* rollout эпизодов в MiniGrid;
+* расчёт return и advantage;
+* GRPO-обновление модели;
+* evaluation после updates;
+* построение графиков success rate / average return.
+
+Перед запуском нужен SFT-чекпоинт, полученный в `notebooks_with_processing/nanoVLM.ipynb`.
+
+## Полный пайплайн запуска
+
+### 1. Создание action-only датасета
+
+```bash
+python dataset_creation/create_dataset_with_actions.py
+python dataset_creation/convert_dataset_with_actions.py
+```
+
+### 2. Запуск SFT-бэйзлайна
+
+Открыть ноутбук:
+
+```text
+notebooks_with_processing/nanoVLM.ipynb
+```
+
+и выполнить ячейки по порядку.
+
+### 3. Запуск GRPO
+
+Открыть ноутбук:
+
+```text
+notebooks_with_processing/GRPO.ipynb
+```
+
+и выполнить ячейки по порядку, указав путь к SFT-чекпоинту.
+
+### 4. Создание text + action датасета
 
 ```bash
 python dataset_creation/create_dataset_with_text.py
